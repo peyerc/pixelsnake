@@ -1,0 +1,22 @@
+body {
+    padding-top: 5rem;
+}
+
+#game-area {
+}
+#matrix, #gameover {
+    position: absolute;
+}
+#gameover {
+    z-index: 10;
+    background: gray;
+    opacity: 0.96;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    visibility: hidden;
+}
+
+.pixel {
+}

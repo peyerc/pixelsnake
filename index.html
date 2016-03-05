@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pixel Snake</title>
+
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css">
+    <link rel="stylesheet" type="text/css" href="css/pixel_snake.css">
+
+    <script src="js/jquery/jquery-2.2.1.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script src="js/pixelsnake/pixel_snake.js"></script>
+
+</head>
+<body>
+
+    <nav class="navbar navbar-fixed-top navbar-dark bg-inverse">
+        <a class="navbar-brand" href="#">Pixel Snake</a>
+        <!--ul class="nav navbar-nav">
+            <li class="nav-item active">
+                <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#">About</a>
+            </li>
+        </ul-->
+    </nav>
+
+    <div class="container">
+
+        <div class="row">
+            <div class="col-md-8">
+                <div id="game-area">
+                    <div id="matrix"></div>
+                    <div id="gameover">
+                        <h1>Game Over</h1>
+                        <h3><Score></Score></h3>
+                        <p><button id="restart-button" class="btn btn-primary"> Start Over</button></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="row">
+                    <div class="col-lg-6">Score</div>
+                    <div class="col-lg-6" id="score">0</div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">Length</div>
+                    <div class="col-lg-6" id="length">0</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
