@@ -6,7 +6,10 @@ This is Pixel Snake.
 - [TODO](#todo)
 
 ## Todo
- * LED Optimize pixel rendering
+ * LED Optimized pixel rendering
  * Add different pill sorts. E.g. red pill for inverse direction effect.
  * Add opponents
+ * Make a tron level/version
+ * Add two player support
+ * Add Levels
 

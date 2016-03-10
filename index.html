@@ -9,6 +9,7 @@
 
     <script src="js/jquery/jquery-2.2.1.js"></script>
     <script src="js/bootstrap.js"></script>
+    <script src="js/sound-js/sound.js"></script>
     <script src="js/pixelsnake/pixel_snake.js"></script>
 
 </head>
@@ -29,7 +30,7 @@
     <div class="container">
 
         <div class="row">
-            <div class="col-md-8">
+            <div class="col-md-10">
                 <div id="game-area">
                     <div id="matrix"></div>
                     <div id="gameover">
@@ -39,7 +40,11 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
+                <div class="row">
+                    <div class="col-lg-6">Hi-Score</div>
+                    <div class="col-lg-6" id="hi-score">0</div>
+                </div>
                 <div class="row">
                     <div class="col-lg-6">Score</div>
                     <div class="col-lg-6" id="score">0</div>
@@ -47,6 +52,10 @@
                 <div class="row">
                     <div class="col-lg-6">Length</div>
                     <div class="col-lg-6" id="length">0</div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">Speed</div>
+                    <div class="col-lg-6" id="speed">0</div>
                 </div>
             </div>
         </div>
