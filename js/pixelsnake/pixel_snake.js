@@ -2,19 +2,26 @@ var PIXEL_COLOR_OFF = '#D3D3D3';
 var PIXEL_COLOR_ON = '#FFFFCC';
 var PIXEL_COLOR_SNAKE_HEAD = '#FFFF00';
 var PIXEL_COLOR_PILL = '#0099ff';
-var PIXEL_SIZE = 25;
+var PIXEL_SIZE = 20;
 var PIXEL_MARGIN = 1;
 
 var MATRIX_COLOR = 'black';
-var MATRIX_SIZE_X = 8;
-var MATRIX_SIZE_Y = 8;
+var MATRIX_SIZE_X = 16;
+var MATRIX_SIZE_Y = 16;
 
 var KEY_SPACE=32;
-var KEY_LEFT=37;
-var KEY_RIGHT=39;
-var KEY_UP=38;
-var KEY_DOWN=40;
+var KEY_A=65;
+var KEY_D=68;
+var KEY_W=87;
 var KEY_S=83;
+var KEY_LEFT_1=37;
+var KEY_RIGHT_1=39;
+var KEY_UP_1=38;
+var KEY_DOWN_1=40;
+var KEY_LEFT_2=KEY_A;
+var KEY_RIGHT_2=KEY_D;
+var KEY_UP_2=KEY_W;
+var KEY_DOWN_2=KEY_S;
 var KEY_1=49;
 var KEY_2=50;
 var KEY_3=51;
@@ -26,6 +33,27 @@ var UP=1;
 var RIGHT=2;
 var DOWN=3;
 var LEFT=4;
+
+var matrixArray = [];
+var snakes = [];
+var pill = new Pill();
+
+var fps = 30;
+
+var snakeLength = 5;
+var snakeSpeed = 4;
+
+var hiScore = 0;
+var jqMemory = {};
+var gameLoopHolder;
+var tick = 0;
+var isGameOver = false;
+var frequencyStart = 130;
+var frequencyLimit = 300;
+var level = 0;
+
+var borders = false;
+var growAmount = 2;
 
 function fxPillEat() {
     //D
@@ -73,47 +101,21 @@ function fxWallHit() {
     );
 }
 
-var matrixArray = [];
-
-var snake = new Snake();
-var pill = new Pill();
-
-var fps = 30;
-
-var accelerate = false;
-var snakeLength = 3;
-var snakeSpeed = 3;
-
-var score = 0;
-var hiScore = 0;
-var jqMemory = {};
-var gameLoop;
-var tick = 0;
-var isGameOver = false;
-var frequencyStart = 130;
-var frequencyLimit = 300;
-
-var borders = false;
-
-var tailMustGrow = function () {
-    return snake.tail.length < snakeLength-1;
-};
-var snakeGrowTime = 0;
-var growAmount = 2;
-
-function Snake() {
+function Snake(i) {
+    this.id = i;
     this.tail = [];
     this.posX = 0;
     this.posY = 0;
     this.direction = STOP;
     this.speed = 0;
-};
-Snake.prototype.coords = function () {
-    console.log(this.posX, this.posY);
+    this.score = 0;
+    this.accelerate = false;
+    this.snakeGrowTime = snakeLength;
+    this.alive = true;
 };
 Snake.prototype.updatePosition = function () {
 
-    if (!isTimeToMove()) {
+    if (!this.isTimeToMove()) {
         return;
     }
 
@@ -133,22 +135,49 @@ Snake.prototype.updatePosition = function () {
     //border wrap
     if (!borders) borderWrap(this);
 
+    //check collision
+    if (checkCollisionWithAllSnakes(this.posX, this.posY)) {
+        this.die();
+    }
+
     if (oldPosX != this.posX || oldPosY != this.posY) {
         fxMove(this.frequency);
-        snake.updateTail(oldPosX, oldPosY);
+        this.updateTail(oldPosX, oldPosY);$
+
+        if (this.accelerate) {
+            this.speed *= 1.05;
+            this.accelerate = false;
+        }
     }
 
-    if (tailMustGrow()) {
-        snake.addTailPart();
-    }
+    //if (this.tailMustGrow()) {
+    //    this.addTailPart();
+    //}
 
 };
-Snake.prototype.collision = function (x, y) {
-    if (this.headCollision(x, y) || this.tailCollision(x, y)) {
+Snake.prototype.isTimeToMove = function () {
+    if (tick % (fps / this.speed) < 1) {
         return true;
     }
     return false;
 };
+
+Snake.prototype.collision = function () {
+    for (s in snakes) {
+        if (snakes[s].id == this.id && this.tailCollision(snakes[s].posX, snakes[s].posY)) {
+            console.log(snakes[s].id, " has collision with own tail");
+            return true;
+        } else if (snakes[s].id != this.id && this.headCollision(snakes[s].posX, snakes[s].posY)) {
+            console.log(snakes[s].id, " has collision with head from ", this.id);
+            return true;
+        } else if (snakes[s].id != this.id && this.tailCollision(snakes[s].posX, snakes[s].posY)) {
+            console.log(snakes[s].id, " has collision with tail from ", this.id);
+            return true;
+        }
+    }
+    return false;
+};
+
 Snake.prototype.headCollision = function (x, y) {
     if (this.posX == x && this.posY == y) {
         return true;
@@ -158,6 +187,8 @@ Snake.prototype.headCollision = function (x, y) {
 Snake.prototype.tailCollision = function (x, y) {
     if (this.tail) {
         for (var i = 0; i < this.tail.length; i++) {
+            //console.log(this.id, x, y);
+            //console.log(this.id, this.tail[i].posX, this.tail[i].posY);
             if (this.tail[i].posX == x && this.tail[i].posY == y) {
                 return true;
             }
@@ -168,31 +199,33 @@ Snake.prototype.tailCollision = function (x, y) {
 Snake.prototype.pillCollision = function (x, y) {
     return pill.posX == x && pill.posY == y;
 };
+Snake.prototype.tailMustGrow = function () {
+    return this.tail.length < snakeLength-1;
+};
 Snake.prototype.updateTail = function (posX, posY) {
-    if (this.pillCollision(snake.posX, snake.posY)) {
-        eatPill();
-        snakeGrowTime = growAmount;
+    if (this.pillCollision(this.posX, this.posY)) {
+        eatPill(this);
+        this.snakeGrowTime = growAmount;
         this.tail.pop();
-    } else if (snakeGrowTime > 0) {
+    } else if (this.snakeGrowTime > 0) {
         //the snake gets one part longer
-        snakeGrowTime--;
+        this.snakeGrowTime--;
     } else {
         this.tail.pop();
     }
     this.tail.unshift({'posX': posX, 'posY': posY});
 };
-Snake.prototype.init = function() {
+Snake.prototype.init = function(speed) {
 
+    this.score = 0;
     this.frequency = frequencyStart;
-
-    this.speed = snakeSpeed;
-
+    this.speed = speed;
     this.tail = [];
 
     this.posX = randomXPos();
     this.posY = randomYPos();
 
-    while (!hasCollision(this.posX, this.posY)) {
+    while (hasCollision(this.posX, this.posY)) {
         this.posX = randomXPos();
         this.posY = randomYPos();
     }
@@ -226,10 +259,21 @@ Snake.prototype.addTailPart = function () {
         }
 
         if (!hasCollision(randDir.posX, randDir.posY)) {
+            console.log(this.id, " add tail at ", randDir.posX, randDir.posY);
             this.tail.push({'posX': randDir.posX, 'posY': randDir.posY});
             found = true;
         }
     }
+};
+Snake.prototype.die = function () {
+    fxWallHit();
+    this.alive = false;
+    //for (s in snakes) {
+    //    if (snakes[s].id == this.id) {
+    //        snakes.splice(s, 1);
+    //    }
+    //}
+    console.log("snake died", this);
 };
 
 function Pill() {};
@@ -237,8 +281,8 @@ Pill.prototype.randomPos = function () {
     this.posX = randomXPos();
     this.posY = randomYPos();
 
-    while (snake.collision(this.posX, this.posY)) {
-        console.log(this.posX, this.posY);
+    while (checkCollisionWithAllSnakes(this.posX, this.posY)) {
+        console.log("pill placement collision: ", this.posX, this.posY);
         this.posX = randomXPos();
         this.posY = randomYPos();
     }
@@ -247,18 +291,44 @@ Pill.prototype.collision = function (x, y) {
     return this.posX == x && this.posY == y;
 };
 
-var checkGameOver = function (x, y) {
-    if (borderCollision(x, y) || snake.tailCollision(x, y)) {
-        fxWallHit();
-        gameOver();
+var getSnake = function (id) {
+    for (i in snakes) {
+        if (snakes[i].id == id) {
+            return snakes[i];
+        }
     }
+    console.log("didn't find a snake with id " + id);
+    return null;
+};
+
+var checkCollisionWithAllSnakes = function(x, y) {
+    for (s in snakes) {
+        if (snakes[s].collision(x, y)) {
+            return true;
+        }
+    }
+    return false;
+};
+
+var checkGameOver = function () {
+    for (s in snakes) {
+        if (!snakes[s].alive) {
+            snakes.splice(s, 1);
+        }
+        if (snakes.length > 0) {
+            return false;
+        }
+    }
+    console.log("no snake left");
+    gameOver();
 };
 
 var hasCollision = function (posX, posY) {
-    if (pill.collision(posX, posY)
-        || snake.collision(posX, posY)
-        || borderCollision(posX, posY)
-    ) {
+    var pc = pill.collision(posX, posY);
+    var sc = checkCollisionWithAllSnakes(posX, posY);
+    var bc = borderCollision(posX, posY);
+    //console.log(pc, sc, bc);
+    if (pc || sc || bc) {
         return true;
     } else {
         return false;
@@ -288,31 +358,31 @@ var borderYCollision = function (y) {
 };
 
 var snakeStop = function () {
-    snake.direction = STOP;
-};
-
-var isTimeToMove = function () {
-    if (tick % (fps / snake.speed) < 1) {
-        return true;
+    for (s in snakes) {
+        snakes[s].direction = STOP;
     }
-    return false;
 };
 
-var eatPill = function () {
+var eatPill = function (s) {
     pill.randomPos();
-    score = Math.round(score + 1000 * snake.speed);
-    if (hiScore < score) hiScore = score;
-    accelerate = true;
-    if (snake.frequency < frequencyLimit) snake.frequency++;
+    s.score = Math.round(s.score + 1000 * s.speed);
+    if (hiScore < s.score) hiScore = s.score;
+    s.accelerate = true;
+    if (s.frequency < frequencyLimit) s.frequency++;
     fxPillEat();
+    level++;
 };
 
+
+//TODO: update all snakes
 var gameOver = function() {
     console.log("gameover");
     isGameOver = true;
     snakeStop();
-    snake.tail = [];
-    clearInterval(gameLoop);
+    for (s in snakes) {
+        snakes[s].tail = [];
+    }
+    stopGame();
     jqMemory['gameover'].css('visibility', 'visible');
 };
 
@@ -338,7 +408,7 @@ var directionUpdate = function(x, y, dir) {
 };
 
 var debugFreeze = function () {
-    clearInterval(gameLoop);
+    stopGame();
 };
 
 var shuffle = function (array) {
@@ -376,6 +446,34 @@ var setPixel = function(posX, posY, color) {
     matrixArray[posY][posX].css({'background': color});
 };
 
+var updatePosition = function() {
+    for (s in snakes) {
+        snakes[s].updatePosition();
+    }
+};
+
+var startGame = function(noOfPlayer, initialSpeed) {
+
+    snakes = [];
+    for (i = 0; i < noOfPlayer; i++) {
+        snakes.push(new Snake(i+1));
+    }
+
+    //initial snake position and movement
+    for (s in snakes) {
+        snakes[s].init(initialSpeed);
+    }
+
+    //initial pill position
+    pill.randomPos();
+
+    gameLoopHolder = setInterval(gameLoop, 1000 / fps); // Setup interval. Delay controlls tickrate.
+};
+
+var stopGame = function () {
+    clearInterval(gameLoopHolder);
+};
+
 //TODO: rendering must be more efficient on a real LED
 var renderFrame = function() {
 
@@ -388,39 +486,35 @@ var renderFrame = function() {
 
     // lit the leds
 
-    //snake head
-    setPixel(snake.posX, snake.posY, PIXEL_COLOR_SNAKE_HEAD);
+    //snakes
+    for (s in snakes) {
+        //snake head
+        setPixel(snakes[s].posX, snakes[s].posY, PIXEL_COLOR_SNAKE_HEAD);
 
-    //snake tail
-    for (var t = 0; t < snake.tail.length; t++) {
-        setPixel(snake.tail[t].posX, snake.tail[t].posY, PIXEL_COLOR_ON);
+        //snake tail
+        for (var t = 0; t < snakes[s].tail.length; t++) {
+            setPixel(snakes[s].tail[t].posX, snakes[s].tail[t].posY, PIXEL_COLOR_ON);
+        }
     }
 
     //pill
     setPixel(pill.posX, pill.posY, PIXEL_COLOR_PILL)
 
     //update score board
-    jqMemory['gameoverScore'].html("Your score is " + score);
-    jqMemory['score'].html(score);
+    jqMemory['gameoverScore'].html("Your score is " + -1);
+    jqMemory['score'].html("not impl.");
     jqMemory['hiScore'].html(hiScore);
-    jqMemory['length'].html(snake.tail.length + 1);
-    jqMemory['speed'].html(snake.speed);
+    jqMemory['level'].html(level);
 
-    //snake.coords()
 };
 
-var main = function() {
-
-    if (accelerate) {
-        snake.speed *= 1.05;
-        accelerate = false;
-    }
+var gameLoop = function() {
 
     //update snake position
-    snake.updatePosition();
+    updatePosition();
 
     //check for game end
-    checkGameOver(snake.posX, snake.posY);
+    checkGameOver();
 
     //render frame
     renderFrame();
@@ -435,8 +529,7 @@ $().ready(function() {
     var matrix = $('#matrix');
     jqMemory['score'] = $('#score');
     jqMemory['hiScore'] = $('#hi-score');
-    jqMemory['length'] = $('#length');
-    jqMemory['speed'] = $('#speed');
+    jqMemory['level'] = $('#level');
     jqMemory['gameover'] = $('#gameover');
     jqMemory['gameoverScore'] = $('#gameover h3');
     jqMemory['restart-button'] = $('#restart-button');
@@ -444,72 +537,72 @@ $().ready(function() {
     jqMemory['gameover'].css({'width': MATRIX_SIZE_X * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
     jqMemory['gameover'].css({'height': MATRIX_SIZE_Y * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
 
-    var init = function() {
-
-        tick = 0;
-
-        //set matrix size and color
-        matrix.css({'width': MATRIX_SIZE_X * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
-        matrix.css({'height': MATRIX_SIZE_Y * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
-        matrix.css({'background': MATRIX_COLOR});
-
-        //fill matrix with pixels
-        var pixelNo = 1;
-        for (var y = 0; y < MATRIX_SIZE_Y; y++) {
-            for (var x = 0; x < MATRIX_SIZE_X; x++) {
-                var pixelDiv = createPixel(pixelNo);
-                if (!matrixArray[y]) matrixArray[y] = []
-                matrixArray[y][x] = pixelDiv;
-                matrix.append(pixelDiv);
-                pixelNo++;
-            }
-        }
-
-        //initial snake position and movement
-        snake.init();
-
-        //initial pill position
-        pill.randomPos();
-
-    }
-
     // Keyup listener
+
     //TODO: make me pretty...
-    // ..and fix the no direction bug: when there is no direction and the player heads
-    // into the snake tail direction it the game is immediately over.
+    // ..and fix the no direction bugs:
+    // 1 when there is no direction and the player heads
+    //   into the snake tail direction it the game is immediately over.
+    // 2 when the player does a u turn before the next move tick he dies.
     //
     body.keyup(function(e) {
         switch(e.keyCode) {
             case KEY_SPACE:
                 if (isGameOver) jqMemory['restart-button'].trigger('click');
                 break;
-            case KEY_LEFT:
-                if (snake.direction != RIGHT) {
-                    snake.direction = LEFT;
+            case KEY_LEFT_1:
+                if (getSnake(1) != null && getSnake(1).direction != RIGHT) {
+                    getSnake(1).direction = LEFT;
                 }
                 break;
-            case KEY_RIGHT:
-                if (snake.direction != LEFT) {
-                    snake.direction = RIGHT;
+            case KEY_RIGHT_1:
+                if (getSnake(1) != null && getSnake(1).direction != LEFT) {
+                    getSnake(1).direction = RIGHT;
                 }
                 break;
-            case KEY_UP:
-                if (snake.direction != DOWN) {
-                    snake.direction = UP;
+            case KEY_UP_1:
+                if (getSnake(1) != null && getSnake(1).direction != DOWN) {
+                    getSnake(1).direction = UP;
                 }
                 break;
-            case KEY_DOWN:
-                if (snake.direction != UP) {
-                    snake.direction = DOWN;
+            case KEY_DOWN_1:
+                if (getSnake(1) != null && getSnake(1).direction != UP) {
+                    getSnake(1).direction = DOWN;
+                }
+                break;
+            case KEY_LEFT_2:
+                if (getSnake(2) != null && getSnake(2).direction != RIGHT) {
+                    getSnake(2).direction = LEFT;
+                }
+                break;
+            case KEY_RIGHT_2:
+                if (getSnake(2) != null && getSnake(2).direction != LEFT) {
+                    getSnake(2).direction = RIGHT;
+                }
+                break;
+            case KEY_UP_2:
+                if (getSnake(2) != null && getSnake(2).direction != DOWN) {
+                    getSnake(2).direction = UP;
+                }
+                break;
+            case KEY_DOWN_2:
+                if (getSnake(2) != null && getSnake(2).direction != UP) {
+                    getSnake(2).direction = DOWN;
                 }
                 break;
             case KEY_1:
-                fxMove(snake.frequency);
+                startGame(1, snakeSpeed);
                 break;
             case KEY_2:
-                fxPillEat();
+                startGame(2, snakeSpeed);
                 break;
             case KEY_3:
+                fxMove(getSnake(1).frequency);
+                break;
+            case KEY_4:
+                fxPillEat();
+                break;
+            case KEY_5:
                 fxWallHit();
                 break;
         }
@@ -518,17 +611,33 @@ $().ready(function() {
     jqMemory['restart-button'].on('click', function () {
         console.log("restart");
         jqMemory['gameover'].css('visibility', 'hidden');
-        gameLoop = setInterval(main, 1000 / fps);
-        score = 0;
-        snake.init();
+        startGame(1, snakeSpeed);
         pill.randomPos()
+        level = 0;
         isGameOver = false;
 1    });
 
     //Init
-    init();
+    tick = 0;
+
+    //set matrix size and color
+    matrix.css({'width': MATRIX_SIZE_X * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
+    matrix.css({'height': MATRIX_SIZE_Y * (PIXEL_SIZE + 2 * PIXEL_MARGIN) + 'px'});
+    matrix.css({'background': MATRIX_COLOR});
+
+    //fill matrix with pixels
+    var pixelNo = 1;
+    for (var y = 0; y < MATRIX_SIZE_Y; y++) {
+        for (var x = 0; x < MATRIX_SIZE_X; x++) {
+            var pixelDiv = createPixel(pixelNo);
+            if (!matrixArray[y]) matrixArray[y] = []
+            matrixArray[y][x] = pixelDiv;
+            matrix.append(pixelDiv);
+            pixelNo++;
+        }
+    }
 
     //Start of the program loop
-    gameLoop = setInterval(main, 1000 / fps); // Setup interval. Delay controlls tickrate.
+    startGame(1, snakeSpeed);
 
 });
